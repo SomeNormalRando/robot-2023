@@ -120,8 +120,8 @@ class post(threading.Thread):
     
     def run(self):
             while running:
-                Bm = self.lf.position
-                Cm = self.rm.position
+                Bm = self.lf.speed
+                Cm = self.rm.speed
                 
                 mes = (Bm, Cm)
                 mes = ','.join([str(x) for x in mes])
