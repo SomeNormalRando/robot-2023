@@ -40,10 +40,10 @@ h2 {
 	letter-spacing: 0.1rem;
 	color: var(--color-4);
 }
-.info-display {
+.dynamic-info-display {
 	font-size: 2rem;
 	font-family: monospace;
 }
-#status-display {
-	font-weight: bold;
+#connection-display {
+	font-weight: 900;
 }

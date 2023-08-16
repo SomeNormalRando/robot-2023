@@ -1,15 +1,18 @@
 // constants
 const MAX_BATTERY_VOLTS = 8.5;
-const LAST_CONTACT_UPDATE_INTERVAL = 100;
+const LAST_CONTACT_UPDATE_INTERVAL = 250;
 // time taken for robot status to switch from "connected" to "disconnected" if no data is received (in ms)
-const DISCONNECT_THRESHOLD = 10000;
+const DISCONNECT_THRESHOLD = 7000;
 
 const connectionDisplay = document.getElementById("connection-display");
-const lastContactDisplay = document.getElementById("last-contact-display");
+const lastContactTimeDisplay = document.getElementById("last-contact-time-display");
+const lastContactMsDisplay = document.getElementById("last-contact-ms-display");
 const batteryPercentageDisplay = document.getElementById("battery-percentage-display");
 const batteryVoltsDisplay = document.getElementById("battery-volts-display");
+
 const rightMotorSpeedDisplay = document.getElementById("right-motor-speed-display")
 const leftMotorSpeedDisplay = document.getElementById("left-motor-speed-display")
+const mediumMotorSpeedDisplay = document.getElementById("medium-motor-speed-display")
 
 let lastContactTimestamp = -Infinity;
 
@@ -26,28 +29,34 @@ socket.on("ev3-message", rawData => {
 
 	leftMotorSpeedDisplay.textContent = data.leftMotorSpeed;
 	rightMotorSpeedDisplay.textContent = data.rightMotorSpeed;
+	mediumMotorSpeedDisplay.textContent = data.mediumMotorSpeed;
 });
 
 setInterval(() => {
-	const lastContact = Date.now() - lastContactTimestamp;
+	const lastContactDiff = Date.now() - lastContactTimestamp;
+	const lastContactDate = new Date(lastContactTimestamp);
 
-	lastContactDisplay.textContent = lastContact;
+	lastContactTimeDisplay.textContent = `${lastContactDate.getHours()}:${lastContactDate.getMinutes()}:${lastContactDate.getSeconds()}`;
 
-	// if lastContact is too long ago
-	if ((lastContact > DISCONNECT_THRESHOLD)) {
+	lastContactMsDisplay.textContent = lastContactDiff;
+
+	// if last contact is too long ago
+	if ((lastContactDiff > DISCONNECT_THRESHOLD)) {
 		// prevent rerunning if connectionDisplay already shows "disconnected"
 		if (connectionDisplay.textContent === "disconnected") return;
 
 		connectionDisplay.textContent = "disconnected";
 
-		lastContactDisplay.style.color = "red";
-		connectionDisplay.style.color = "red";
+		for (const infoDisplay of document.getElementsByClassName("dynamic-info-display")) {
+			infoDisplay.style.color = "red";
+		}
 	// if lastContact is within threshold but connectionDisplay is still "disconnected" (robot reconnected)
 	} else if (connectionDisplay.textContent === "disconnected") {
 		connectionDisplay.textContent = "active";
 
-		lastContactDisplay.style.color = "green";
-		connectionDisplay.style.color = "green";
+		for (const infoDisplay of document.getElementsByClassName("dynamic-info-display")) {
+			infoDisplay.style.color = "green";
+		}
 	}
 }, 100);
 
