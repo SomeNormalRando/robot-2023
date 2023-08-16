@@ -118,8 +118,8 @@ class post(threading.Thread):
     
     def run(self):
             while running:
-                left_motor_speed = self.left_motor.position
-                right_motor_speed = self.right_motor.position
+                left_motor_speed = self.left_motor.speed
+                right_motor_speed = self.right_motor.speed
                 battery = pow.measured_volts
 
                 msg = (left_motor_speed, right_motor_speed, battery)
