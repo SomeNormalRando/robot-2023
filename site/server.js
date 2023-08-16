@@ -7,15 +7,15 @@ import * as mqtt from "mqtt";
 
 // constants
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = 6969;
-const SOCKET_EVENT_NAME = "eventName";
+const SERVER_PORT = 6969;
+const SOCKET_EVENT_NAME = "ev3-message";
 
 // #region server
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
 
-app.get("/", (req, res) => {
+app.get("/", (_req, res) => {
 	res.sendFile(__dirname + "/public/index.html")
 });
 app.use(express.static("public"));
@@ -24,8 +24,8 @@ io.on("connection", (socket) => {
 	console.log(`Socket connection received from ${socket.handshake.address}.`)
 });
 
-server.listen(PORT, () => {
-	console.log(`Server listening on localhost:${PORT}`);
+server.listen(SERVER_PORT, () => {
+	console.log(`Server listening on localhost:${SERVER_PORT}`);
 });
 // #endregion
 
@@ -50,17 +50,14 @@ mqtt.connectAsync("mqtts://f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud:8
 			.catch(err => console.error(err));
 	});
 
-	client.on("message", (topic, message) => {
+	client.on("message", (_topic, message) => {
 		// message is Buffer
 		const msgStr = message.toString();
 		console.log(`Message received: \`${msgStr}\`.`);
 
-		// const dataJSON = JSON.parse(msgStr);
-
 		// Send data to all connected clients
 		io.emit(SOCKET_EVENT_NAME, msgStr);
 	});
-
 }).catch(err => console.error(err));
 // #endregion
 
