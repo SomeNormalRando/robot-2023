@@ -8,7 +8,8 @@ from datetime import datetime
 #region Constants
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
 MAX_LARGE_MOTOR_SPEED = 1050
-PUSHER_MOTOR_SPEED = 1560
+PUSHER_MOTOR_SPEED = 30
+PUSHER_MOTOR_ROTATION = 1
 OPENER_MOTOR_OPENING_SPEED = 1560
 OPENER_MOTOR_CLOSING_SPEED = -1560
 # font list: https://ev3dev-lang.readthedocs.io/projects/python-ev3dev/en/ev3dev-stretch/display.html#bitmap-fonts
@@ -61,7 +62,8 @@ import evdev
 from time import sleep
 
 from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
-import ev3dev2 as ev3dev2
+import ev3dev2
+from ev3dev2 import motor
 from ev3dev2.power import PowerSupply
 
 import paho.mqtt.client as paho
@@ -73,7 +75,7 @@ display_info("Modules loaded.")
 
 class post(threading.Thread):
     def __init__(self):
-        self.pow = PowerSupply("/sys/class/power_supply/lego-ev3-battery")
+        self.pow = PowerSupply("/sys/class/power_supply/", "lego-ev3-battery", True)
         self.right_motor = LargeMotor(OUTPUT_C)
         self.left_motor = LargeMotor(OUTPUT_B)
         display_info("MQTT Posting!")
@@ -106,7 +108,7 @@ class post(threading.Thread):
         client.connect(MQTT_BROKER_ADDRESS, 8883)
         client.on_connect = on_connect
         client.on_publish = on_publish
-        client.loop_start()
+        client.loop_forever(timeout=1.0, retry_first_connection=True)
         while True:
             message = (self.right_motor.speed, self.left_motor.speed, self.pow.measured_volts)
             message = ','.join([str(x) for x in message])
@@ -160,10 +162,10 @@ class MotorThread(threading.Thread):
                     speed_sp = self.opener_motor_speed
                 )
                 if self.pusher_motor_running == True:
-                    self.push_motor.run_forever(
-                        speed_sp = PUSHER_MOTOR_SPEED
-                    )
-            except:
+                    self.push_motor.on_for_rotations(PUSHER_MOTOR_SPEED, PUSHER_MOTOR_ROTATION)
+                    self.pusher_motor_running = False
+            except motor.SpeedInvalid as e:
+                
                 pass
 
 mt = MotorThread()
@@ -189,12 +191,14 @@ for event in gamepad.read_loop():   # this loops infinitely
             mt.opener_motor_speed = OPENER_MOTOR_CLOSING_SPEED
         elif event.code == 311 and event.value == 1: # R1
             mt.opener_motor_speed = OPENER_MOTOR_OPENING_SPEED
-        else:
-            mt.opener_motor_speed = 0
-
-        if event.code == 312 and event.value == 1: # L2
+        elif event.code == 310 and event.value == 1: #L1
             mt.pusher_motor_running = True
         else:
             mt.pusher_motor_running = False
+            mt.opener_motor_speed = 0
 
-# MQTT
+        
+        
+        
+
+
