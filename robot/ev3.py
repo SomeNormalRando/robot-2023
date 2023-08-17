@@ -108,12 +108,14 @@ class post(threading.Thread):
         client.connect(MQTT_BROKER_ADDRESS, 8883)
         client.on_connect = on_connect
         client.on_publish = on_publish
-        client.loop_forever(timeout=1.0, retry_first_connection=True)
+        client.loop_start()
         while True:
             message = (self.right_motor.speed, self.left_motor.speed, self.pow.measured_volts)
             message = ','.join([str(x) for x in message])
             client.publish("ev3/test", payload=message, qos=1)
+            sleep(10)
             
+
             
 #region Initialisation
 display_info("Finding PS4 controller...")
