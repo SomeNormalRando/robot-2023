@@ -4,10 +4,11 @@ import ev3dev2.fonts as fonts
 from ev3dev2.sound import Sound
 
 #region Constants
-MEDIUM_MOTOR_OPENING_SPEED = 1560
-MEDIUM_MOTOR_CLOSING_SPEED = -500
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
 MAX_LARGE_MOTOR_SPEED = 1050
+PUSHER_MOTOR_SPEED = 1560
+OPENER_MOTOR_OPENING_SPEED = 1560
+OPENER_MOTOR_CLOSING_SPEED = -500
 # font list: https://ev3dev-lang.readthedocs.io/projects/python-ev3dev/en/ev3dev-stretch/display.html#bitmap-fonts
 DISPLAY_FONT = fonts.load("charB08")
 #endregion
@@ -54,7 +55,7 @@ display_info("Loading modules...", True)
 import threading
 import evdev
 
-from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C
+from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 import ev3dev2 as ev3dev2
 from sound import amogus
 
@@ -64,6 +65,8 @@ display_info("Modules loaded.")
 display_info("Finding PS4 controller...")
 devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
 gamepad = devices[0]
+if gamepad.name != "Wireless Controller":
+    raise ConnectionError(str.format("PS4 controller not found (found `{}` instead).", gamepad))
 display_info("PS4 controller found.")
 
 display_info("Initialising MotorThread.")
@@ -71,15 +74,23 @@ class MotorThread(threading.Thread):
     running = True
     forward_speed = 0.0
     side_speed = 0.0
-    medium_motor_speed = 0.0
+    opener_motor_speed = 0.0
+    pusher_motor_running = False
 
     def __init__(self):
         self.left_motor = LargeMotor(OUTPUT_B)
         self.right_motor = LargeMotor(OUTPUT_C)
+
         try:
-            self.medium_motor = MediumMotor(OUTPUT_A)
+            self.open_motor = MediumMotor(OUTPUT_A)
         except(ev3dev2.DeviceNotFound):
-            display_info("No medium motor found at Port A. Proceeding without.")
+            display_info("No medium motor found at Port A (open motor). Proceeding without.")
+            pass
+
+        try:
+            self.push_motor = MediumMotor(OUTPUT_D)
+        except(ev3dev2.DeviceNotFound):
+            display_info("No large motor found at Port D (push motor). Proceeding without.")
             pass
 
         threading.Thread.__init__(self)
@@ -93,9 +104,13 @@ class MotorThread(threading.Thread):
                 speed_sp = dc_clamp(self.forward_speed + self.side_speed)
             )
             try:
-                self.medium_motor.run_forever(
-                    speed_sp = self.medium_motor_speed
+                self.open_motor.run_forever(
+                    speed_sp = self.opener_motor_speed
                 )
+                if self.pusher_motor_running == True:
+                    self.push_motor.run_forever(
+                        speed_sp = PUSHER_MOTOR_SPEED
+                    )
             except:
                 pass
 
@@ -115,13 +130,14 @@ for event in gamepad.read_loop():   # this loops infinitely
             mt.side_speed = -scale_stick(event.value)
     if event.type == 1:
         if event.code == 313 and event.value == 1: # R2
-            mt.medium_motor_speed = MEDIUM_MOTOR_OPENING_SPEED
+            mt.opener_motor_speed = OPENER_MOTOR_OPENING_SPEED
         elif event.code == 311 and event.value == 1: # R1
-            mt.medium_motor_speed = MEDIUM_MOTOR_CLOSING_SPEED
+            mt.opener_motor_speed = OPENER_MOTOR_CLOSING_SPEED
         else:
-            mt.medium_motor_speed = 0
+            mt.opener_motor_speed = 0
 
-        if event.code == 312: # L2
-            speak("hi guys")
-        elif event.code == 310: # L1
-            speak("stop trying lee jiya chen")
+        if event.code == 312 and event.value == 1: # L2
+            mt.pusher_motor_running = True
+            print("L2")
+        else:
+            mt.pusher_motor_running = False

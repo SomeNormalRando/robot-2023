@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title>TowerMaintainer Status</title>
+    <title>TowerMaintainer Web Interface</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" type="text/css" media="screen" href="style.css">
+    <link rel="stylesheet" type="text/css" media="screen" href="/style.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" defer></script>
-	<script src="script.js" defer></script>
+	<script src="/script.js" defer></script>
 </head>
 <body>
-    <h1>TowerMaintainer Status</h1>
+    <h1>TowerMaintainer Web Interface</h1>
     <main>
-        <section>
-			<h3>Status</h3>
+        <section id="section-robot-status">
+			<h3>Robot Status</h3>
 			<p>
 				<span class="info-type-display">Connection:</span>
 				<span id="connection-display" class="dynamic-info-display">-</span>
@@ -29,8 +29,8 @@
 				(<span id="battery-volts-display" class="dynamic-info-display">-</span> V)
 			</p>
 		</section>
-        <section>
-			<h3>Speed</h3>
+		<section>
+			<h3>Driving & Climbing Motors</h3>
 			<p>
 				<span class="info-type-display">Left motor:</span>
 				<span id="left-motor-speed-display" class="dynamic-info-display">-</span>%
@@ -40,12 +40,23 @@
 				<span id="right-motor-speed-display" class="dynamic-info-display">-</span>%
 			</p>
 			<p>
-				<span class="info-type-display">Medium motor:</span>
-				<span id="medium-motor-speed-display" class="dynamic-info-display">-</span>%
+				<span class="info-type-display">Direction:</span>
+				<span id="left-motor-speed-display" class="dynamic-info-display">-</span>
 			</p>
 		</section>
 		<section>
+			<h3>Other Motors</h3>
+			<p>
+				<span class="info-type-display">Opener motor:</span>
+				<span id="opener-motor-speed-display" class="dynamic-info-display">-</span>%
+			</p>
+			<p>
+				<span class="info-type-display">Pusher motor:</span>
+				<span id="pusher-motor-speed-display" class="dynamic-info-display">-</span>%
+			</p>
 		</section>
+
+
     </main>
 </body>
 </html>

@@ -1,3 +1,5 @@
+/* eslint-env browser */
+/* eslint-disable no-use-before-define */
 // constants
 const MAX_BATTERY_VOLTS = 8.5;
 const LAST_CONTACT_UPDATE_INTERVAL = 250;
@@ -10,14 +12,14 @@ const lastContactMsDisplay = document.getElementById("last-contact-ms-display");
 const batteryPercentageDisplay = document.getElementById("battery-percentage-display");
 const batteryVoltsDisplay = document.getElementById("battery-volts-display");
 
-const rightMotorSpeedDisplay = document.getElementById("right-motor-speed-display")
-const leftMotorSpeedDisplay = document.getElementById("left-motor-speed-display")
-const mediumMotorSpeedDisplay = document.getElementById("medium-motor-speed-display")
+const rightMotorSpeedDisplay = document.getElementById("right-motor-speed-display");
+const leftMotorSpeedDisplay = document.getElementById("left-motor-speed-display");
+const mediumMotorSpeedDisplay = document.getElementById("medium-motor-speed-display");
 
 let lastContactTimestamp = -Infinity;
 
 const socket = io();
-socket.on("ev3-message", rawData => {
+socket.on("ev3-message", (rawData) => {
 	console.log(`Message received: ${rawData}`);
 
 	const data = processData(rawData);
@@ -25,7 +27,7 @@ socket.on("ev3-message", rawData => {
 	lastContactTimestamp = Date.now();
 
 	batteryVoltsDisplay.textContent = round1(data.batteryLevel);
-	batteryPercentageDisplay.textContent = round1(data.batteryLevel / MAX_BATTERY_VOLTS * 100);
+	batteryPercentageDisplay.textContent = round1((data.batteryLevel / MAX_BATTERY_VOLTS) * 100);
 
 	leftMotorSpeedDisplay.textContent = data.leftMotorSpeed;
 	rightMotorSpeedDisplay.textContent = data.rightMotorSpeed;
@@ -58,7 +60,7 @@ setInterval(() => {
 			infoDisplay.style.color = "green";
 		}
 	}
-}, 100);
+}, LAST_CONTACT_UPDATE_INTERVAL);
 
 function processData(rawData) {
 	const dataJSON = JSON.parse(`[${rawData}]`);
@@ -66,8 +68,8 @@ function processData(rawData) {
 	return {
 		leftMotorSpeed: dataJSON[0],
 		rightMotorSpeed: dataJSON[1],
-		batteryLevel: dataJSON[2]
-	}
+		batteryLevel: dataJSON[2],
+	};
 }
 
 /** rounds a number to 1 decimal place */
