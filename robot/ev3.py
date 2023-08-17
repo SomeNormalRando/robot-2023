@@ -2,15 +2,16 @@
 from ev3dev2.display import Display
 import ev3dev2.fonts as fonts
 from ev3dev2.sound import Sound
+from datetime import datetime
 
 #region Constants
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
 MAX_LARGE_MOTOR_SPEED = 1050
 PUSHER_MOTOR_SPEED = 1560
 OPENER_MOTOR_OPENING_SPEED = 1560
-OPENER_MOTOR_CLOSING_SPEED = -500
+OPENER_MOTOR_CLOSING_SPEED = -1560
 # font list: https://ev3dev-lang.readthedocs.io/projects/python-ev3dev/en/ev3dev-stretch/display.html#bitmap-fonts
-DISPLAY_FONT = fonts.load("charB08")
+DISPLAY_FONT = fonts.load("charB12")
 #endregion
 
 #region Helper functions
@@ -20,13 +21,15 @@ def speak(text):
     spkr.speak(text, volume = 100, play_type = 1)
 
 def display_info(message: str, do_you_want_to_speak_it = False):
-    print("[INFO] " + message)
-
     if (do_you_want_to_speak_it == True):
         speak(message)
 
+    now = datetime.now().strftime("%H:%M:%S")
+
+    print(str.format("[{}] {}", now, message))
+
     display.text_pixels(
-        text = "[INFO] " + message,
+        text = str.format("[{}] {}", now, message),
         clear_screen = True,
         x = 0, y = 0,
         text_color = "OrangeRed",
@@ -57,7 +60,6 @@ import evdev
 
 from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 import ev3dev2 as ev3dev2
-from sound import amogus
 
 display_info("Modules loaded.")
 
@@ -82,15 +84,15 @@ class MotorThread(threading.Thread):
         self.right_motor = LargeMotor(OUTPUT_C)
 
         try:
-            self.open_motor = MediumMotor(OUTPUT_A)
+            self.push_motor = LargeMotor(OUTPUT_A)
         except(ev3dev2.DeviceNotFound):
-            display_info("No medium motor found at Port A (open motor). Proceeding without.")
+            display_info("No large motor found at Port A (push motor). Proceeding without.")
             pass
 
         try:
-            self.push_motor = MediumMotor(OUTPUT_D)
+            self.open_motor = MediumMotor(OUTPUT_D)
         except(ev3dev2.DeviceNotFound):
-            display_info("No large motor found at Port D (push motor). Proceeding without.")
+            display_info("No medium motor found at Port D (open motor). Proceeding without.")
             pass
 
         threading.Thread.__init__(self)
@@ -130,14 +132,44 @@ for event in gamepad.read_loop():   # this loops infinitely
             mt.side_speed = -scale_stick(event.value)
     if event.type == 1:
         if event.code == 313 and event.value == 1: # R2
-            mt.opener_motor_speed = OPENER_MOTOR_OPENING_SPEED
-        elif event.code == 311 and event.value == 1: # R1
             mt.opener_motor_speed = OPENER_MOTOR_CLOSING_SPEED
+        elif event.code == 311 and event.value == 1: # R1
+            mt.opener_motor_speed = OPENER_MOTOR_OPENING_SPEED
         else:
             mt.opener_motor_speed = 0
 
         if event.code == 312 and event.value == 1: # L2
             mt.pusher_motor_running = True
-            print("L2")
         else:
             mt.pusher_motor_running = False
+
+# MQTT
+import paho.mqtt.client as paho
+
+MQTT_USERNAME = "ev3maker"
+MQTT_PASSWORD = "Test123-"
+MQTT_BROKER_ADDRESS = "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud"
+MQTT_BROKER_PORT = 8883
+
+MQTT_TOPIC = "ev3/test"
+
+# CONNACK response from server
+def on_connect(client, userdata, flags, rc):
+    display_info(str.format("Connected to server with result code {}.", rc))
+
+# PUBLISH message from server
+def on_message(client, userdata, msg):
+    display_info(str.format("{} {}", msg.topic, msg.payload))
+
+client = paho.Client()
+
+client.on_connect = on_connect
+client.on_message = on_message
+
+client.tls_set()
+client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+
+display_info(str.format("Connecting to server..."))
+client.connect(MQTT_BROKER_ADDRESS, MQTT_BROKER_PORT)
+
+client.loop_forever()
