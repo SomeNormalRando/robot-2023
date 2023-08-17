@@ -4,6 +4,7 @@ import ev3dev2.fonts as fonts
 from ev3dev2.sound import Sound
 from datetime import datetime
 
+
 #region Constants
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
 MAX_LARGE_MOTOR_SPEED = 1050
@@ -53,16 +54,65 @@ def dc_clamp(value: float):
 #endregion
 
 display_info("Constants and helper functions loaded.")
-display_info("Loading modules...", True)
+display_info("Loading modules...", False)
 
 import threading
 import evdev
+from time import sleep
 
 from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 import ev3dev2 as ev3dev2
+from ev3dev2.power import PowerSupply
+
+import paho.mqtt.client as paho
+from paho import mqtt
+
 
 display_info("Modules loaded.")
 
+
+class post(threading.Thread):
+    def __init__(self):
+        self.pow = PowerSupply("/sys/class/power_supply/lego-ev3-battery")
+        self.right_motor = LargeMotor(OUTPUT_C)
+        self.left_motor = LargeMotor(OUTPUT_B)
+        display_info("MQTT Posting!")
+    
+        threading.Thread.__init__(self)
+
+    def on_connect(client, userdata, flags, rc, properties=None):
+        print("CONNACK received with code %s." % rc)
+    
+    def on_publish(client, userdata, mid, properties=None):
+        print("Published!")
+    
+    MQTT_USERNAME = "ev3maker"
+    MQTT_PASSWORD = "Test123-"
+    MQTT_BROKER_ADDRESS = "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud"
+    
+    def run(self):
+        def on_connect(client, userdata, flags, rc, properties=None):
+            print("CONNACK received with code %s." % rc)
+        def on_publish(client, userdata, mid, properties=None):
+            print("Published!")
+
+        MQTT_USERNAME = "ev3maker"
+        MQTT_PASSWORD = "Test123-"
+        MQTT_BROKER_ADDRESS = "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud"
+        
+        client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
+        client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+        client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
+        client.connect(MQTT_BROKER_ADDRESS, 8883)
+        client.on_connect = on_connect
+        client.on_publish = on_publish
+        client.loop_start()
+        while True:
+            message = (self.right_motor.speed, self.left_motor.speed, self.pow.measured_volts)
+            message = ','.join([str(x) for x in message])
+            client.publish("ev3/test", payload=message, qos=1)
+            
+            
 #region Initialisation
 display_info("Finding PS4 controller...")
 devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
@@ -120,8 +170,12 @@ mt = MotorThread()
 mt.setDaemon(True)
 mt.start()
 
+post_thread = post()
+post_thread.setDaemon(True)
+post_thread.start()
+
 display_info("MotorThread started.")
-display_info("Robot fully initialised.", True)
+display_info("Robot fully initialised.", False)
 #endregion
 
 for event in gamepad.read_loop():   # this loops infinitely
@@ -144,32 +198,3 @@ for event in gamepad.read_loop():   # this loops infinitely
             mt.pusher_motor_running = False
 
 # MQTT
-import paho.mqtt.client as paho
-
-MQTT_USERNAME = "ev3maker"
-MQTT_PASSWORD = "Test123-"
-MQTT_BROKER_ADDRESS = "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud"
-MQTT_BROKER_PORT = 8883
-
-MQTT_TOPIC = "ev3/test"
-
-# CONNACK response from server
-def on_connect(client, userdata, flags, rc):
-    display_info(str.format("Connected to server with result code {}.", rc))
-
-# PUBLISH message from server
-def on_message(client, userdata, msg):
-    display_info(str.format("{} {}", msg.topic, msg.payload))
-
-client = paho.Client()
-
-client.on_connect = on_connect
-client.on_message = on_message
-
-client.tls_set()
-client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-
-display_info(str.format("Connecting to server..."))
-client.connect(MQTT_BROKER_ADDRESS, MQTT_BROKER_PORT)
-
-client.loop_forever()
