@@ -17,7 +17,7 @@ const display = {
 	rightMotorSpeed: document.getElementById("right-motor-speed-display"),
 	leftMotorSpeed: document.getElementById("left-motor-speed-display"),
 	drivingDirection: document.getElementById("driving-direction-display"),
-	openerMotorStatus: document.getElementById("opener-motor-status-display"),
+	// openerMotorStatus: document.getElementById("opener-motor-status-display"),
 	pusherMotorStatus: document.getElementById("pusher-motor-status-display"),
 
 	detectedColour: document.getElementById("detected-colour-display"),
@@ -37,7 +37,6 @@ socket.on("ev3-message", (rawData) => {
 
 	const data = JSON.parse(rawData);
 
-	// python timestamp is in seconds
 	display.latency.textContent = Date.now() - data.timestamp;
 
 	display.batteryVolts.textContent = round1(data.batteryLevel);
@@ -50,15 +49,20 @@ socket.on("ev3-message", (rawData) => {
 
 	let drivingDirection;
 
-	if (data.leftMotorSpeed > 0 && data.rightMotorSpeed > 0) drivingDirection = "forwards";
-	else if (data.leftMotorSpeed < 0 && data.rightMotorSpeed < 0) drivingDirection = "backwards";
-	if (data.leftMotorSpeed > 0 && data.rightMotorSpeed < 0) drivingDirection = "right";
-	else if (data.leftMotorSpeed < 0 && data.rightMotorSpeed > 0) drivingDirection = "left";
-	else if (data.leftMotorSpeed === 0 && data.rightMotorSpeed === 0) drivingDirection = "idle";
-	else drivingDirection = "???";
+	if ((data.leftMotorSpeed > 0) && (data.rightMotorSpeed > 0)) {
+		drivingDirection = "forwards";
+	} else if ((data.leftMotorSpeed < 0) && (data.rightMotorSpeed < 0)) {
+		drivingDirection = "backwards";
+	} else if ((data.leftMotorSpeed > 0) && (data.rightMotorSpeed < 0)) {
+		drivingDirection = "right";
+	} else if ((data.leftMotorSpeed < 0) && (data.rightMotorSpeed > 0)) {
+		drivingDirection = "left";
+	} else if ((data.leftMotorSpeed === 0) && (data.rightMotorSpeed === 0)) {
+		drivingDirection = "idle";
+	} else drivingDirection = "???";
 	display.drivingDirection.textContent = drivingDirection;
 
-	display.openerMotorStatus.textContent = data.openerMotorSpeed === 0 ? "idle" : "opening";
+	// display.openerMotorStatus.textContent = data.openerMotorSpeed === 0 ? "idle" : "opening";
 	display.pusherMotorStatus.textContent = data.pusherMotorSpeed === 0 ? "idle" : "pushing";
 
 	display.detectedColour.textContent = data.detectedColour;
