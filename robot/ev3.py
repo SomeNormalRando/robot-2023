@@ -2,7 +2,6 @@
 print("ev3.py started")
 
 from ev3dev2.led import Leds
-from ev3dev2.sound import Sound
 import logging
 from datetime import datetime
 
@@ -27,9 +26,7 @@ MQTT_BROKER_PORT = 8883
 #endregion
 
 #region Helper functions
-spkr = Sound()
-def speak(text):
-    spkr.speak(text, volume = 100, play_type = 1)
+
 
 def clamp(num: float, numMin: float, numMax: float):
     return max(min(numMax, num), numMin)
@@ -55,7 +52,7 @@ from time import sleep
 from json import dumps as stringify_json
 from concurrent.futures import ThreadPoolExecutor
 
-from ev3dev2.motor import MediumMotor, LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
+from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
 from ev3dev2.sensor import Sensor, INPUT_2, INPUT_4
 from ev3dev2.sensor.lego import ColorSensor
 from ev3dev2.power import PowerSupply
@@ -117,7 +114,7 @@ class MotorThread(threading.Thread):
                 detected_colour = mt.color_sensor.color_name
 
                 if detected_colour == mt.colour_mode:
-                    logging.info(str.format("Colour sensor detected color `{}`. Climbing mode switched to: OFF.", mt.color_sensor.color_name))
+                    logging.info(str.format("Colour sensor detected color `{}`. Climbing mode switched to: OFF.", mt.colour_mode))
 
                     mt.forward_speed = 0
                     mt.side_speed = 0
@@ -185,12 +182,12 @@ for event in gamepad.read_loop():
 
             mt.forward_speed = 0
             mt.side_speed = 0
-
+            mt.left_motor.stop()
+            mt.right_motor.stop()
             mt.auto_climbing = False
-            
             mt.colour_mode = ""
         continue
-
+      
     # left joystick moved
     if event.type == 3:
         if event.code == 0:     # X axis on left stick
@@ -233,7 +230,7 @@ for event in gamepad.read_loop():
             mt.forward_speed = 0
             mt.side_speed = MAX_LARGE_MOTOR_SPEED
 
-            # mt.opener_motor_speed = 0
+            # mt.opener_motor_speed = 0'''''''''
             mt.pusher_motor_running = False
         elif event.code == 305: # circle button
             mt.colour_mode = "Green"
