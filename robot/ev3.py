@@ -13,7 +13,8 @@ LEDs.set_color("RIGHT", "AMBER")
 
 #region Constants
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
-MAX_LARGE_MOTOR_SPEED = 1050
+MAX_LARGE_MOTOR_SPEED = 700
+CLIMBING_SPEED = 1050
 PUSHER_MOTOR_SPEED = 30
 PUSHER_MOTOR_ROTATIONS = 1
 # OPENER_MOTOR_OPENING_SPEED = 1560
@@ -119,9 +120,14 @@ class MotorThread(threading.Thread):
                     mt.forward_speed = 0
                     mt.side_speed = 0
 
-                    mt.left_motor.on_for_seconds(speed=MAX_LARGE_MOTOR_SPEED, seconds=7)
-                    mt.right_motor.on_for_seconds(speed=MAX_LARGE_MOTOR_SPEED, seconds=7)
-
+                    mt.left_motor.on_for_seconds(speed=CLIMBING_SPEED, seconds=2)
+                    mt.right_motor.on_for_seconds(speed=CLIMBING_SPEED, seconds=2)
+                    mt.pusher_motor.on_for_rotations(PUSHER_MOTOR_SPEED, PUSHER_MOTOR_ROTATIONS)
+                    while mt.ultrasonic_sensor.value(1) >= 7:
+                        mt.right_motor.run_forever(speed_sp = -CLIMBING_SPEED)
+                        mt.left_motor.run_forever(speed_sp = -CLIMBING_SPEED)
+                    mt.right_motor.run_forever(speed_sp = 0)
+                    mt.left_motor.run_forever(speed_sp = 0)
                     mt.auto_climbing = False
                     mt.colour_mode = ""
 
@@ -179,11 +185,12 @@ for event in gamepad.read_loop():
     if mt.auto_climbing == True:
         if event.type == 1 and event.value == 1 and (event.code == 308 or event.code == 305):
             logging.info(str.format("Climbing mode [colour: {}] switched OFF.", mt.colour_mode))
-
+            sleep(2)
             mt.forward_speed = 0
             mt.side_speed = 0
-            mt.left_motor.stop()
-            mt.right_motor.stop()
+            mt.left_motor.run_forever(speed_sp = 0)
+            mt.left_motor.run_forever(speed_sp = 0)
+            
             mt.auto_climbing = False
             mt.colour_mode = ""
         continue
@@ -222,18 +229,8 @@ for event in gamepad.read_loop():
                 logging.info("[DEV] Started publishing again.")
                 LEDs.set_color("LEFT", "GREEN")
                 LEDs.set_color("RIGHT", "GREEN")
-        elif event.code == 308: # square button
-            mt.colour_mode = "Red"
-            logging.info(str.format("Climbing mode [colour: {}] switched ON.", mt.colour_mode))
-            mt.auto_climbing = True
-
-            mt.forward_speed = 0
-            mt.side_speed = MAX_LARGE_MOTOR_SPEED
-
-            # mt.opener_motor_speed = 0'''''''''
-            mt.pusher_motor_running = False
         elif event.code == 305: # circle button
-            mt.colour_mode = "Green"
+            mt.colour_mode = "White"
             logging.info(str.format("Climbing mode [colour: {}] switched ON.", mt.colour_mode))
             mt.auto_climbing = True
 
