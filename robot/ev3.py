@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
 print("ev3.py started")
 
-from ev3dev2.led import Leds
-import logging
-from datetime import datetime
-
-logging.basicConfig(format="[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%H:%M:%S", level=logging.DEBUG)
-
-LEDs = Leds()
-LEDs.set_color("LEFT", "AMBER")
-LEDs.set_color("RIGHT", "AMBER")
-
 #region Constants
+COLOUR = "Red"
 MIN_LARGE_MOTOR_SPEED = 100 # motor stops if speed is below this
 MAX_LARGE_MOTOR_SPEED = 700
 CLIMBING_SPEED = 1050
@@ -19,7 +10,6 @@ PUSHER_MOTOR_SPEED = 30
 PUSHER_MOTOR_ROTATIONS = 1
 # OPENER_MOTOR_OPENING_SPEED = 1560
 # OPENER_MOTOR_CLOSING_SPEED = -1560
-BRICK_COLOUR_NAMES = ("Red", "Green")
 MQTT_USERNAME = "ev3maker"
 MQTT_PASSWORD = "Test123-"
 MQTT_BROKER_ADDRESS = "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud"
@@ -27,11 +17,8 @@ MQTT_BROKER_PORT = 8883
 #endregion
 
 #region Helper functions
-
-
 def clamp(num: float, numMin: float, numMax: float):
     return max(min(numMax, num), numMin)
-
 def scale(val: float, src: tuple, dst: tuple):
     return (float(val - src[0]) / (src[1] - src[0])) * (dst[1] - dst[0]) + dst[0]
 
@@ -44,23 +31,33 @@ def dc_clamp(value: float):
     return clamp(value, -MAX_LARGE_MOTOR_SPEED, MAX_LARGE_MOTOR_SPEED)
 #endregion
 
-logging.info("Constants and helper functions loaded.")
+import logging
+from ev3dev2.led import Leds
+
+logging.basicConfig(format="[%(asctime)s] [%(levelname)s] %(message)s", datefmt="%H:%M:%S", level=logging.DEBUG)
+
+LEDs = Leds()
+LEDs.set_color("LEFT", "AMBER")
+LEDs.set_color("RIGHT", "AMBER")
+
+
 logging.info("Loading modules...")
 
+import evdev # type: ignore
 import threading
-import evdev
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from json import dumps as stringify_json
-from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 
-from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D
-from ev3dev2.sensor import Sensor, INPUT_2, INPUT_4
+from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C
+from ev3dev2.sensor import Sensor, INPUT_1, INPUT_4
 from ev3dev2.sensor.lego import ColorSensor
 from ev3dev2.power import PowerSupply
 
 import paho.mqtt.client as paho
 from paho import mqtt
-
+from ssl import PROTOCOL_TLS
 
 logging.info("Modules loaded.")
 
@@ -77,7 +74,6 @@ class MotorThread(threading.Thread):
     side_speed = 0.0
     # opener_motor_speed = 0.0
     pusher_motor_running = False
-    colour_mode = ""
     auto_climbing = False
     publishing = True
 
@@ -89,12 +85,12 @@ class MotorThread(threading.Thread):
     
         self.pusher_motor = LargeMotor(OUTPUT_A)
         # self.opener_motor = MediumMotor(OUTPUT_D)
-    
-        self.color_sensor = ColorSensor(INPUT_2)
-        self.ultrasonic_sensor = Sensor(INPUT_4)
+
+        self.ultrasonic_sensor = Sensor(INPUT_1)
+        self.color_sensor = ColorSensor(INPUT_4)
     
         self.init_mqtt()
-
+ 
         threading.Thread.__init__(self)
 
     def run(self):
@@ -114,26 +110,33 @@ class MotorThread(threading.Thread):
             if mt.auto_climbing == True:
                 detected_colour = mt.color_sensor.color_name
 
-                if detected_colour == mt.colour_mode:
-                    logging.info(str.format("Colour sensor detected color `{}`. Climbing mode switched to: OFF.", mt.colour_mode))
+                if detected_colour == COLOUR:
+                    mt.auto_climbing = False
 
                     mt.forward_speed = 0
                     mt.side_speed = 0
+                    logging.info(str.format("Colour sensor detected color `{}`. Climbing mode switched to: OFF.", COLOUR))
 
-                    mt.left_motor.on_for_seconds(speed=CLIMBING_SPEED, seconds=2)
-                    mt.right_motor.on_for_seconds(speed=CLIMBING_SPEED, seconds=2)
+                    logging.info("Running for 5.5 seconds...")
+                    self.left_motor.run_forever(speed_sp = CLIMBING_SPEED)
+                    self.right_motor.run_forever(speed_sp = CLIMBING_SPEED)
+                    sleep(5.5)
+
+                    self.left_motor.run_forever(speed_sp = 0)
+                    self.right_motor.run_forever(speed_sp = 0)
+
                     mt.pusher_motor.on_for_rotations(PUSHER_MOTOR_SPEED, PUSHER_MOTOR_ROTATIONS)
-                    while mt.ultrasonic_sensor.value(1) >= 7:
-                        mt.right_motor.run_forever(speed_sp = -CLIMBING_SPEED)
-                        mt.left_motor.run_forever(speed_sp = -CLIMBING_SPEED)
-                    mt.right_motor.run_forever(speed_sp = 0)
-                    mt.left_motor.run_forever(speed_sp = 0)
-                    mt.auto_climbing = False
-                    mt.colour_mode = ""
+
+                    while mt.ultrasonic_sensor.value() >= 7:
+                        self.left_motor.run_forever(speed_sp = -(CLIMBING_SPEED / 3))
+                        self.right_motor.run_forever(speed_sp = -(CLIMBING_SPEED / 3))
+
+                    self.left_motor.run_forever(speed_sp = 0)
+                    self.right_motor.run_forever(speed_sp = 0)
 
     def init_mqtt(self):
         self.client = paho.Client(client_id="", userdata=None, protocol=paho.MQTTv5)
-        self.client.tls_set(tls_version=mqtt.client.ssl.PROTOCOL_TLS)
+        self.client.tls_set(tls_version=PROTOCOL_TLS)
         self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
 
         logging.info("[MQTT] Connecting to broker...")
@@ -183,18 +186,18 @@ LEDs.set_color("RIGHT", "GREEN")
 for event in gamepad.read_loop():
     # stop controller from doing anything if robot is in climbing mode
     if mt.auto_climbing == True:
-        if event.type == 1 and event.value == 1 and (event.code == 308 or event.code == 305):
-            logging.info(str.format("Climbing mode [colour: {}] switched OFF.", mt.colour_mode))
-            sleep(2)
+        if event.type == 1 and event.value == 1 and event.code == 305:
+            mt.auto_climbing = False
+            logging.info(str.format("Climbing mode [colour: {}] switched OFF with controller.", COLOUR))
+
             mt.forward_speed = 0
             mt.side_speed = 0
+
             mt.left_motor.run_forever(speed_sp = 0)
-            mt.left_motor.run_forever(speed_sp = 0)
-            
-            mt.auto_climbing = False
-            mt.colour_mode = ""
+            mt.right_motor.run_forever(speed_sp = 0)
+
         continue
-      
+
     # left joystick moved
     if event.type == 3:
         if event.code == 0:     # X axis on left stick
@@ -218,6 +221,11 @@ for event in gamepad.read_loop():
         #     mt.forward_speed = 0
         #     mt.side_speed = -MAX_LARGE_MOTOR_SPEED
 
+        # elif event.code == 304: # X button: calibrate
+        #     mt.color_sensor.calibrate_white()
+
+        #     logging.info("[DEV] WHITE CALIBRATED")
+
         elif event.code == 312: # L2: toggle publishing (dev)
             if mt.publishing == True:
                 logging.info("[DEV] Stopped publishing.")
@@ -230,8 +238,7 @@ for event in gamepad.read_loop():
                 LEDs.set_color("LEFT", "GREEN")
                 LEDs.set_color("RIGHT", "GREEN")
         elif event.code == 305: # circle button
-            mt.colour_mode = "White"
-            logging.info(str.format("Climbing mode [colour: {}] switched ON.", mt.colour_mode))
+            logging.info(str.format("Climbing mode [colour: {}] switched ON.", COLOUR))
             mt.auto_climbing = True
 
             mt.forward_speed = 0

@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
@@ -9,7 +8,7 @@ import * as mqtt from "mqtt";
 // constants
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SERVER_PORT = 6969;
+const SERVER_PORT = 8000;
 const SOCKET_EVENT_NAME = "ev3-message";
 const MQTT_OPTIONS = {
 	host: "f67aa56d63fe477796edc000d79019de.s2.eu.hivemq.cloud",
@@ -27,6 +26,7 @@ function log(msg) {
 	const minutes = String(time.getMinutes()).padStart(2, "0");
 	const seconds = String(time.getSeconds()).padStart(2, "0");
 
+	// eslint-disable-next-line no-console
 	console.log(`[${hours}:${minutes}:${seconds}] ${msg}`);
 }
 
@@ -49,7 +49,7 @@ io.on("connection", (socket) => {
 });
 // #endregion
 
-// #region mqtt
+// #region MQTT
 log("[MQTT] Connecting to broker...");
 
 const client = mqtt.connect(MQTT_OPTIONS);
@@ -59,7 +59,7 @@ client.on("connect", () => {
 
 	client.subscribe(MQTT_TOPIC, (err, granted) => {
 		if (err) throw new Error(err);
-		log(`[MQTT] Subscribed to topic "${granted[0].topic}" with QoS level ${granted[0].qos}`);
+		log(`[MQTT] Subscribed to topic "${granted[0].topic}" with QoS level ${granted[0].qos}.`);
 	});
 });
 
@@ -74,5 +74,6 @@ client.on("message", (_topic, message) => {
 
 client.on("close", () => log("[MQTT] Disconnected from broker."));
 
+// eslint-disable-next-line no-console
 client.on("error", (e) => console.error(e));
 // #endregion
