@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 print("ev3.py started")
 
-COLOUR = "Red"
-
 import logging
 from ev3dev2.led import Leds
 
@@ -15,7 +13,7 @@ logging.basicConfig(format="[%(asctime)s] [%(levelname)s] %(message)s", datefmt=
 logging.info("Loading modules...")
 import evdev # type: ignore
 from keymap import PS4Keymap
-from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 # from json import dumps as stringify_json
 # from datetime import datetime
 # from time import sleep
@@ -42,6 +40,70 @@ class TowerMaintainer:
     JOYSTICK_SCALE_RADIUS = 100
     PUSHER_MOTOR_SPEED_PERCENT = 30
 
+    def __init__(self):
+        self.controller = self.find_ps4_controller()
+
+        """
+         joystick axes:
+              +y
+               |
+        -x --- o --- +x
+               |
+              -y
+        """
+        self.joystick_x = 0.0
+        self.joystick_y = 0.0
+        self.move_joystick = MoveJoystick(OUTPUT_B, OUTPUT_C)
+
+        # self.power = PowerSupply("/sys/class/power_supply/", "lego-ev3-battery", True)
+
+        # self.pusher_motor = LargeMotor(OUTPUT_A)
+        self.left_motor = LargeMotor(OUTPUT_B)
+        self.right_motor = LargeMotor(OUTPUT_C)
+
+        # self.ultrasonic_sensor = Sensor(INPUT_1)
+        # self.color_sensor = ColorSensor(INPUT_4)
+
+        # self.currently_publishing = True
+
+    def start_controller_loop(self):
+        logging.info("Started PS4 controller loop.")
+        for event in self.controller.read_loop():
+            if event.code == PS4Keymap.AXE_LX.value: # left joystick, X axis
+                self.joystick_x = event.value
+            if event.code == PS4Keymap.AXE_LY.value: # left joystick, Y axis
+                self.joystick_y = event.value
+
+            # if event.code == PS4Keymap.BTN_L1.value:
+                # self.pusher_motor.on_for_rotations(TowerMaintainer.PUSHER_MOTOR_SPEED_PERCENT, 1)
+
+    def start_motors_loop(self):
+        logging.info("Started motors loop.")
+        while True:
+            scaled_x = TowerMaintainer.scale_joystick(self.joystick_x)
+            scaled_y = TowerMaintainer.scale_joystick(self.joystick_y)
+
+            print("Scaled X:", scaled_x, "Scaled Y:", scaled_y)
+
+            self.move_joystick.on(
+                scaled_y,
+                scaled_x,
+                TowerMaintainer.JOYSTICK_SCALE_RADIUS
+            )
+
+    @staticmethod
+    def find_ps4_controller():
+        logging.info("Finding PS4 controller...")
+
+        devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
+        controller = devices[0]
+        if controller.name != "Wireless Controller":
+            raise ConnectionError(str.format("PS4 controller not found (found `{}` instead).", controller))
+
+        logging.info("PS4 controller found.")
+
+        return controller
+
     @staticmethod
     def scale_range(val: float, src: Tuple[float, float], dst: Tuple[float, float]):
         MIN = src[0]
@@ -59,68 +121,6 @@ class TowerMaintainer:
             (0, 255),
             (-TowerMaintainer.JOYSTICK_SCALE_RADIUS, +TowerMaintainer.JOYSTICK_SCALE_RADIUS)
         )
-
-    def __init__(self):
-        self.find_ps4_controller()
-
-        """
-         joystick axes:
-              +y
-               |
-        -x --- o --- +x
-               |
-              -y
-        """
-        self.joystick_x = 0.0
-        self.joystick_y = 0.0
-        self.move_joystick = MoveJoystick(OUTPUT_B, OUTPUT_C)
-
-        self.power = PowerSupply("/sys/class/power_supply/", "lego-ev3-battery", True)
-
-        self.pusher_motor = LargeMotor(OUTPUT_A)
-        self.left_motor = LargeMotor(OUTPUT_B)
-        self.right_motor = LargeMotor(OUTPUT_C)
-
-        # self.ultrasonic_sensor = Sensor(INPUT_1)
-        # self.color_sensor = ColorSensor(INPUT_4)
-
-        self.currently_publishing = True
-
-    def find_ps4_controller(self):
-        logging.info("Finding PS4 controller...")
-
-        devices = [evdev.InputDevice(path) for path in evdev.list_devices()]
-        self.controller = devices[0]
-        if self.controller.name != "Wireless Controller":
-            raise ConnectionError(str.format("PS4 controller not found (found `{}` instead).", self.controller))
-
-        logging.info("PS4 controller found.")
-
-    def start_controller_loop(self):
-        logging.info("Started PS4 controller loop.")
-        for event in self.controller.read_loop():
-            if event.code == PS4Keymap.AXE_LX: # left joystick, X axis
-                if abs(event.value) > TowerMaintainer.PS4_JOYSTICK_THRESHOLD:
-                    self.joystick_x = event.value
-            if event.code == PS4Keymap.AXE_LY: # left joystick, Y axis
-                if abs(event.value) > TowerMaintainer.PS4_JOYSTICK_THRESHOLD:
-                    self.joystick_y = event.value
-
-            if event.code == PS4Keymap.BTN_L1:
-                self.pusher_motor.on_for_rotations(TowerMaintainer.PUSHER_MOTOR_SPEED_PERCENT, 1)
-
-    def start_motors_loop(self):
-        logging.info("Started motors loop.")
-        while True:
-            scaled_x = TowerMaintainer.scale_joystick(self.joystick_x)
-            scaled_y = TowerMaintainer.scale_joystick(self.joystick_y)
-            print("X:", self.joystick_x, scaled_x)
-            print("Y:", self.joystick_y, scaled_y)
-            self.move_joystick.on(
-                scaled_x,
-                scaled_y,
-                TowerMaintainer.JOYSTICK_SCALE_RADIUS
-            )
 
 """
 class MQTTPublisher:
@@ -178,7 +178,8 @@ class MQTTPublisher:
 robot = TowerMaintainer()
 # publisher = MQTTPublisher(robot)
 
-executor = ThreadPoolExecutor(max_workers=3)
-executor.submit(robot.start_controller_loop)
-executor.submit(robot.start_motors_loop)
+t1 = Thread(target = robot.start_controller_loop)
+t2 = Thread(target = robot.start_motors_loop)
+t1.start()
+t2.start()
 # executor.submit(publisher.start_publish_loop)
