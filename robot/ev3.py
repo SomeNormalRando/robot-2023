@@ -40,8 +40,11 @@ class TowerMaintainer:
     JOYSTICK_SCALE_RADIUS = 100
     JOYSTICK_THRESHOLD = 5
     PUSHER_MOTOR_SPEED_PERCENT = 30
+    OPENER_MOTOR_SPEED = 1000
+    opener_motor_speed = 0
 
     def __init__(self):
+        
         self.move_joystick = None
         # self.left_motor = None
         # self.right_motor = None
@@ -81,8 +84,10 @@ class TowerMaintainer:
 
     def start_controller_loop(self):
         logging.info("Started PS4 controller loop.")
-
+        opener_motor_speed = 0
+        
         for event in self.controller.read_loop():
+            
             if event.type == 3: # joystick [do not remove this condition]
                 raw_val = event.value
                 if event.code == PS4Keymap.AXE_LX.value: # left joystick, X axis
@@ -95,24 +100,28 @@ class TowerMaintainer:
             if event.code == PS4Keymap.BTN_L1.value:
                 self.pusher_motor.on_for_rotations(TowerMaintainer.PUSHER_MOTOR_SPEED_PERCENT, 1)
 
-            if self.opening == False:
-                if event.code == PS4Keymap.BTN_R2.value:
-                    self.opening = True
-                    self.opener_motor.on_for_rotations(100, 0.2)
-                    self.opening = False
-                elif event.code == PS4Keymap.BTN_R1.value:
-                    self.opening = True
-                    self.opener_motor.on_for_rotations(-100, 0.2)
-                    self.opening = False
-
+        
+            if event.code == PS4Keymap.BTN_R2.value:
+                self.opener_motor.run_forever(speed_sp = -self.OPENER_MOTOR_SPEED)
+                print("close")
+            elif event.code == PS4Keymap.BTN_R1.value:
+                self.opener_motor.run_forever(speed_sp = self.OPENER_MOTOR_SPEED)
+                print("open")
+            else:
+                self.opener_motor.run_forever(speed_sp = 0)
+                
     def start_motors_loop(self):
+        
         logging.info("Started motors loop.")
         while True:
+            
             self.move_joystick.on(
                 self.joystick_x if abs(self.joystick_x) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
                 self.joystick_y if abs(self.joystick_y) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
                 TowerMaintainer.JOYSTICK_SCALE_RADIUS
             )
+            
+    
 
     @staticmethod
     def find_ps4_controller():
@@ -204,6 +213,8 @@ robot = TowerMaintainer()
 
 t1 = Thread(target = robot.start_controller_loop)
 t2 = Thread(target = robot.start_motors_loop)
+
 t1.start()
 t2.start()
+
 # executor.submit(publisher.start_publish_loop)
