@@ -23,21 +23,19 @@ LEDs.set_color("RIGHT", "AMBER")
 
 robot = TowerMaintainer()
 
-t1 = Thread(target = robot.start_controller_read_loop)
-t1.start()
+controller_read_loop_thread = Thread(target = robot.start_controller_read_loop)
+controller_read_loop_thread.start()
 
-t2 = Thread(target = robot.start_controller_activekeys_loop)
-t2.start()
+# controller_activekeys_loop_thread = Thread(target = robot.start_controller_activekeys_loop)
+# controller_activekeys_loop_thread.start()
 
-t3 = Thread(target = robot.start_motors_loop)
-t3.start()
+motors_loop_thread = Thread(target = robot.start_motors_loop)
+motors_loop_thread.start()
 
 # COMMENT THESE TWO LINES TO STOP PUBLISHING MESSAGES THROUGH BLUETOOTH SOCKET
-t4 = Thread(target = start_send_loop, args=[robot])
-t4.start()
+send_loop_thread = Thread(target = start_send_loop, args=[robot])
+send_loop_thread.start()
 
-
-logging.info("All initialisation done.")
 
 LEDs.set_color("LEFT", "GREEN")
 LEDs.set_color("RIGHT", "GREEN")

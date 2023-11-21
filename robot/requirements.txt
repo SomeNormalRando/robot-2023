@@ -1,3 +1,2 @@
-paho-mqtt==1.6.1
 Pillow==10.0.0
 python-ev3dev2==2.1.0.post1
