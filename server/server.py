@@ -7,7 +7,7 @@ import eventlet
 from eventlet import wsgi
 from threading import Thread
 
-logging.basicConfig(format="[%(asctime)s] %(message)s", datefmt="%H:%M:%S", level=logging.DEBUG)
+logging.basicConfig(format="\x1b[32m[%(asctime)s] \x1b[33m{%(levelname)s} \x1b[34m%(message)s\x1b[0m", datefmt="%H:%M:%S", level=logging.DEBUG)
 
 # Constants
 SERVER_ADDRESS = "127.0.0.1"
@@ -34,36 +34,40 @@ def bluetooth_socket_loop():
     BLUETOOTH_ADDRESS = "60:f2:62:a9:d8:cc" 
     CHANNEL = 5 # random number
 
-    # create a socket object with Bluetooth, TCP & RFCOMM
-    with socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM) as server_sock:
-        server_sock.bind((BLUETOOTH_ADDRESS, CHANNEL))
-        server_sock.listen(1)
+    while True:
+        # create a socket object with Bluetooth, TCP & RFCOMM
+        with socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM) as server_sock:
+            server_sock.bind((BLUETOOTH_ADDRESS, CHANNEL))
+            server_sock.listen(1)
 
-        logging.info("{Bluetooth socket} Waiting for connection from EV3...")
+            logging.info("{Bluetooth socket} Waiting for connection from EV3...")
 
-        sock, address = server_sock.accept()
+            sock, address = server_sock.accept()
 
-        logging.info(f"{{Bluetooth socket}} {address} connected.")
+            logging.info(f"{{Bluetooth socket}} {address} connected.")
 
-        SocketIO.emit(socketio_app, "ev3-message", "test", callback=client_callback)
+            SocketIO.emit(socketio_app, "ev3-message", "test", callback=client_callback)
 
-        while True:
-            raw_data = sock.recv(1024)
+            while True:
+                raw_data = sock.recv(1024)
 
-            if not raw_data:
-                logging.info(f"{{Bluetooth socket}} Disconnected from {address}.")
-                break
+                if not raw_data:
+                    logging.info(f"{{Bluetooth socket}} Disconnected from {address}.")
+                    break
 
-            data_str = raw_data.decode()
+                data_str = raw_data.decode()
 
-            logging.debug(f"{{Bluetooth socket}} Data received: {data_str}")
+                logging.debug(f"{{Bluetooth socket}} Data received: {data_str}")
 
-            # ~ send data to client through socket.io
-            socketio_app.emit(
-                SOCKETIO_EVENT_NAME,
-                { "data_str": data_str },
-                callback=client_callback
-            )
+                # ~ send data to client through socket.io
+                socketio_app.emit(
+                    SOCKETIO_EVENT_NAME,
+                    { "data_str": data_str },
+                    callback=client_callback
+                )
+        t = input("\nListen for connection again? [y]: ")
+        if t != "y":
+            break
 
 # WSGI server
 # def wsgi_server_loop():

@@ -21,7 +21,7 @@ const display = {
 	pusherMotorStatus: document.getElementById("pusher-motor-status-display"),
 
 	detectedColour: document.getElementById("detected-colour-display"),
-	robotHeight: document.getElementById("robot-height-display"),
+	// robotHeight: document.getElementById("robot-height-display"),
 
 	latency: document.getElementById("latency-display"),
 	currentTime: document.getElementById("current-time-display"),
@@ -53,7 +53,7 @@ socket.on("ev3-message", (rawData) => {
 		rightMotorSpeed: dataArr[3],
 		pusherMotorSpeed: dataArr[4],
 		detectedColour: dataArr[5] ?? "-",
-		height: dataArr[6] ?? "-",
+		// height: dataArr[6] ?? "-",
 	};
 
 	display.latency.textContent = Date.now() - data.timestamp;
@@ -85,7 +85,7 @@ socket.on("ev3-message", (rawData) => {
 	display.pusherMotorStatus.textContent = data.pusherMotorSpeed === 0 ? "idle" : "pushing";
 
 	display.detectedColour.textContent = data.detectedColour;
-	display.robotHeight.textContent = data.height;
+	// display.robotHeight.textContent = data.height;
 });
 
 setInterval(() => {

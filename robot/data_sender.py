@@ -13,13 +13,20 @@ CHANNEL = 5
 def start_send_loop(robot: TowerMaintainer):
     # create a socket object with Bluetooth, TCP & RFCOMM
     with socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM) as s:
-        # prevent unwanted input
-        t = ""
-        while t is not "y":
-            t = input("Attempt connection to server? [y]: ")
+        while True:
+            try:
+                print()
+                # prevent unwanted input
+                t = ""
+                while t != "y":
+                    t = input("Attempt connection to server? [y]: ")
 
-        s.connect((BLUETOOTH_ADDRESS, CHANNEL))
-        logging.info(str.format("Connected to server (bluetooth device {}, channel {}).", BLUETOOTH_ADDRESS, CHANNEL))
+                s.connect((BLUETOOTH_ADDRESS, CHANNEL))
+                logging.info(str.format("Connected to server (bluetooth device {}, channel {}).", BLUETOOTH_ADDRESS, CHANNEL))
+                break
+            except ConnectionError as error:
+                logging.error("Connection failed:")
+                logging.error(error)
 
         logging.info("Started Bluetooth socket send loop.")
         while True:
@@ -29,7 +36,8 @@ def start_send_loop(robot: TowerMaintainer):
                 robot.power.measured_volts,
                 robot.left_motor.speed,
                 robot.right_motor.speed,
-                robot.pusher_motor.speed
+                robot.pusher_motor.speed,
+                robot.detected_colour
             ])
 
             # `sendall()` sends all data from bytes, `send()` might not
