@@ -7,6 +7,7 @@ from json import dumps as stringify_json
 
 from TowerMaintainer import TowerMaintainer
 
+#jc address: D8:12:65:88:74:74
 BLUETOOTH_ADDRESS = "60:f2:62:a9:d8:cc"
 CHANNEL = 5
 

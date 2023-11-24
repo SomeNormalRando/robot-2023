@@ -61,7 +61,7 @@ class TowerMaintainer:
     # automatic mode
     _CLIMBING_SPEED_PERCENT_ = 100
     _COLOUR_ = "Red"
-    _SECONDS_ = 10
+    _SECONDS_ = 0
 
     def __init__(self):
         self.controller = TowerMaintainer.find_ps4_controller()
@@ -120,7 +120,7 @@ class TowerMaintainer:
             if PS4Keymap.BTN_L1.value in active_keys:
                     self.pusher_motor.on_for_rotations(TowerMaintainer.PUSHER_MOTOR_SPEED_PERCENT, TowerMaintainer.PUSHER_MOTOR_ROTATIONS)
 
-            if PS4Keymap.BTN_R2.value in active_keys:
+            if PS4Keymap.BTN_R1.value in active_keys:
                 if self.auto_mode is False:
                     self.start_auto_mode()
 

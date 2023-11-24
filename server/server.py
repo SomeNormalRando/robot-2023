@@ -3,8 +3,6 @@ import logging
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import socket
-import eventlet
-from eventlet import wsgi
 from threading import Thread
 
 logging.basicConfig(format="\x1b[32m[%(asctime)s] \x1b[33m{%(levelname)s} \x1b[34m%(message)s\x1b[0m", datefmt="%H:%M:%S", level=logging.DEBUG)
@@ -31,6 +29,7 @@ def bluetooth_socket_loop():
         logging.debug("{socket.io} Data sent to client.")
 
     # address of the bluetooth device of this computer (the one you are using right now)
+    #jc address: D8:12:65:88:74:74
     BLUETOOTH_ADDRESS = "60:f2:62:a9:d8:cc" 
     CHANNEL = 5 # random number
 
