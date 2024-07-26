@@ -15,6 +15,10 @@ from ev3dev2.sensor.lego import ColorSensor
 
 from typing import Tuple
 
+from threading import Thread
+from data_sender import start_send_loop
+
+
 logging.info("Modules loaded.")
 
 class TowerMaintainer:
@@ -75,7 +79,7 @@ class TowerMaintainer:
 
         self.auto_mode = False
 
-        # self.currently_publishing = True
+        self.connected_to_server = False
 
     def connect_inputs_and_outputs(self):
         while True:
@@ -110,11 +114,22 @@ class TowerMaintainer:
                     # "-" in front is to reverse the sign (+/-) of y (the y-axis of the PS4 joystick is reversed - see notes.md)
                     self.joystick_y = -(TowerMaintainer.scale_joystick(raw_val))
 
-    def start_controller_activekeys_loop(self):
+    def start_motors_and_activekeys_loop(self):
+        logging.info("Started motors loop.")
         while True:
+            # self.detected_colour = self.colour_sensor.color_name
+
             if self.auto_mode is True:
                 continue
 
+            # MOTORS
+            self.move_joystick.on(
+                self.joystick_x if abs(self.joystick_x) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
+                self.joystick_y if abs(self.joystick_y) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
+                TowerMaintainer.JOYSTICK_SCALE_RADIUS
+            )
+
+            # ACTIVE KEYS
             active_keys = self.controller.active_keys()
 
             if PS4Keymap.BTN_L1.value in active_keys:
@@ -124,26 +139,22 @@ class TowerMaintainer:
                 if self.auto_mode is False:
                     self.start_auto_mode()
 
-    def start_motors_loop(self):
-        logging.info("Started motors loop.")
-        while True:
-            self.detected_colour = self.colour_sensor.color_name
+            # start data_sender
+            if PS4Keymap.BTN_TRIANGLE.value in active_keys:
+                if self.connected_to_server is True:
+                    logging.info("Triangle button pressed but robot is already connected to server. Nothing will be done about it. cry + L + ratio + didn't ask + don't care")
+                elif self.connected_to_server is False:
+                    logging.info("\nTriangle button pressed. Attempting to connect to server and start data send loop...")
 
-            if self.auto_mode is True:
-                continue
-
-            self.move_joystick.on(
-                self.joystick_x if abs(self.joystick_x) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
-                self.joystick_y if abs(self.joystick_y) > TowerMaintainer.JOYSTICK_THRESHOLD else 0,
-                TowerMaintainer.JOYSTICK_SCALE_RADIUS
-            )
+                    send_loop_thread = Thread(target = start_send_loop, args=[self])
+                    send_loop_thread.start()
 
     def start_auto_mode(self):
         self.auto_mode = True
         logging.info("Automatic mode started. The remote control (PS4 controller) is now DISABLED.")
 
 
-        while self.detected_colour is not TowerMaintainer._COLOUR_:
+        while self.colour_sensor.color_name != TowerMaintainer._COLOUR_:
             self.move_joystick.on(
                 0,
                 TowerMaintainer._CLIMBING_SPEED_PERCENT_,
